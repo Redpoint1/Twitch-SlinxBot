@@ -4,7 +4,7 @@ import socket
 import requests
 
 
-class Bot(object):
+class BaseBot(object):
 
     def __init__(self):
         self.host = None
@@ -35,18 +35,26 @@ class Bot(object):
         print('USER %s' % nickname)
         return
 
+    def allow_meta_data(self):
+        self.irc.send(
+            'CAP REQ :twitch.tv/membership\r\n'.encode()
+        )
+        self.irc.send(
+            'CAP REQ :twitch.tv/tags\r\n'.encode()
+        )
+
     def channel_join(self, channel):
         self.channels.append(channel)
 
-        self.irc.send(('JOIN #%s %s' % (channel, os.linesep)).encode())
-        print('JOIN #%s' % channel)
+        self.irc.send(('JOIN %s %s' % (channel, os.linesep)).encode())
+        print('JOIN %s' % channel)
         return
 
     def channel_leave(self, channel):
         self.channels.remove(channel)
 
-        self.irc.send(('PART #%s %s' % (channel, os.linesep)).encode())
-        print('PART #%s' % channel)
+        self.irc.send(('PART %s %s' % (channel, os.linesep)).encode())
+        print('PART %s' % channel)
         return
 
     def message(self, channel, text):
@@ -60,7 +68,7 @@ class Bot(object):
         # :slinxsvk!slinxsvk@slinxsvk.tmi.twitch.tv PRIVMSG #slinxsvk :test
 
         if 'PRIVMSG' in line:
-            regex = re.search(r'^:([^!]+).+(#[^\s]+) :(.*)$', line, re.DOTALL)
+            regex = re.search(r':([^!]+).+(#[^\s]+) :(.*)$', line, re.DOTALL)
             return regex.groups(None)
 
         return None, None, None
@@ -82,6 +90,21 @@ class Bot(object):
                 return True
         return False
 
+    def parse_command(self, text):
+        if text.startswith('!'):
+            command = text.lstrip('!').strip()
+            return command.split()
+        return None
+
+    def dispatch(self, line):
+        user, channel, text = self.meta_info(line)
+        if text:
+            command_args = self.parse_command(text)
+            if command_args:
+                command = getattr(self, command_args[0], None)
+                if command:
+                    command(user, channel, text, *command_args[1:])
+
     def run(self):
         readbuffer = ''
         while True:
@@ -96,6 +119,30 @@ class Bot(object):
                 if line.startswith('PING'):
                     self.pong(line)
                 else:
-                    user, channel, text = self.meta_info(line)
-                    if user:
-                        print('%s: %s -> %s' % (channel, user, text))
+                    self.dispatch(line)
+
+
+class Bot(BaseBot):
+
+    def join(self, user, channel, *args):
+        if channel != ('#'+self.nickname):
+            self.message(
+                channel,
+                'This command is available only on #%s channel' % self.nickname
+            )
+            return
+
+        users_channel = '#%s' % user
+        if users_channel in self.channels:
+            self.message(channel, 'Bot is already on %s' % users_channel)
+            return
+
+        self.channel_join(users_channel)
+        if self.is_mod(user):
+            self.message(users_channel, 'Hi im a bot, please enjoy me. !help')
+        else:
+            self.message(
+                users_channel,
+                '@%s, probably i dont have a mod perms here!' % user
+            )
+        return

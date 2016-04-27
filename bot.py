@@ -1,7 +1,8 @@
-import re
 import os
 import socket
 import requests
+
+from bot_irc import Message
 
 
 class BaseBot(object):
@@ -64,15 +65,6 @@ class BaseBot(object):
         print('PRIVMSG %s :%s' % (channel, text))
         return
 
-    def meta_info(self, line):
-        # :slinxsvk!slinxsvk@slinxsvk.tmi.twitch.tv PRIVMSG #slinxsvk :test
-
-        if 'PRIVMSG' in line:
-            regex = re.search(r':([^!]+).+(#[^\s]+) :(.*)$', line, re.DOTALL)
-            return regex.groups(None)
-
-        return None, None, None
-
     def pong(self, line):
         self.irc.send(('PONG %s %s' % (line.split()[1], os.linesep)).encode())
         return
@@ -90,20 +82,16 @@ class BaseBot(object):
                 return True
         return False
 
-    def parse_command(self, text):
-        if text.startswith('!'):
-            command = text.lstrip('!').strip()
-            return command.split()
-        return None
-
     def dispatch(self, line):
-        user, channel, text = self.meta_info(line)
-        if text:
-            command_args = self.parse_command(text)
-            if command_args:
-                command = getattr(self, 'command_%s' % command_args[0], None)
-                if command:
-                    command(user, channel, text, *command_args[1:])
+        if 'PRIVMSG' in line:
+            message = Message(line)
+            if message.is_command:
+                self.run_command(message)
+
+    def run_command(self, command):
+        command_func = getattr(self, 'command_%s' % command.command, None)
+        if command_func:
+            command_func(command)
 
     def run(self):
         readbuffer = ''
@@ -114,7 +102,7 @@ class BaseBot(object):
 
             for line in temp:
                 line = line.rstrip()
-                # print(line)
+                print(line)
 
                 if line.startswith('PING'):
                     self.pong(line)
@@ -124,25 +112,28 @@ class BaseBot(object):
 
 class Bot(BaseBot):
 
-    def command_join(self, user, channel, *args):
-        if channel != ('#'+self.nickname):
+    def command_join(self, command):
+        if command.channel != ('#'+self.nickname):
             self.message(
-                channel,
+                command.channel,
                 'This command is available only on #%s channel' % self.nickname
             )
             return
 
-        users_channel = '#%s' % user
+        users_channel = '#%s' % command.user
         if users_channel in self.channels:
-            self.message(channel, 'Bot is already on %s' % users_channel)
+            self.message(
+                command.channel,
+                'Bot is already on %s' % users_channel
+            )
             return
 
         self.channel_join(users_channel)
-        if self.is_mod(user):
+        if self.is_mod(command.user):
             self.message(users_channel, 'Hi im a bot, please enjoy me. !help')
         else:
             self.message(
                 users_channel,
-                '@%s, probably i dont have a mod perms here!' % user
+                '@%s, probably i dont have a mod perms here!' % command.user
             )
         return

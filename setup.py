@@ -4,9 +4,9 @@ setup(
     name='twitch-slinxbot',
     version='0.0.1',
     packages=[''],
-    url='',
+    url='https://github.com/Redpoint1/Twitch-SlinxBot',
     license='MIT',
-    author='Redpoint1',
+    author='Richard "Redpoint1" Rozar',
     author_email='redpoints1@gmail.com',
     description='Twitch Bot'
 )

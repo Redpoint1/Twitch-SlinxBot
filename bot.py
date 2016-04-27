@@ -101,7 +101,7 @@ class BaseBot(object):
         if text:
             command_args = self.parse_command(text)
             if command_args:
-                command = getattr(self, command_args[0], None)
+                command = getattr(self, 'command_%s' % command_args[0], None)
                 if command:
                     command(user, channel, text, *command_args[1:])
 
@@ -124,7 +124,7 @@ class BaseBot(object):
 
 class Bot(BaseBot):
 
-    def join(self, user, channel, *args):
+    def command_join(self, user, channel, *args):
         if channel != ('#'+self.nickname):
             self.message(
                 channel,

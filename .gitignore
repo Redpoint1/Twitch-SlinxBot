@@ -66,3 +66,8 @@ target/
 
 # Custom
 .*
+*.pid
+*.bak
+*.dat
+*.dir
+*.sqlite

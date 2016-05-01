@@ -1,4 +1,65 @@
+import os
 import re
+import socket
+
+
+class IRC(object):
+
+    def __init__(self):
+        self.host = None
+        self.port = None
+        self.username = None
+        self.password = None
+        self.channel = None
+        self.connection = socket.socket()
+
+    def connect(self, host, port):
+        self.host = host
+        self.port = port
+
+        self.connection.connect((host, port))
+        return
+
+    def login(self, username, password):
+        self.username = username
+        self.password = password
+
+        self.connection.send(('PASS %s %s' % (password, os.linesep)).encode())
+        self.connection.send(('NICK %s %s' % (username, os.linesep)).encode())
+        self.connection.send(('USER %s %s' % (username, os.linesep)).encode())
+        return
+
+    def allow_meta_data(self):
+        self.connection.send(
+            'CAP REQ :twitch.tv/membership\r\n'.encode()
+        )
+        self.connection.send(
+            'CAP REQ :twitch.tv/tags\r\n'.encode()
+        )
+
+    def channel_join(self, channel):
+        self.channel = channel
+
+        self.connection.send(('JOIN %s %s' % (channel, os.linesep)).encode())
+        return
+
+    def channel_leave(self, channel):
+        self.channel = None
+
+        self.connection.send(('PART %s %s' % (channel, os.linesep)).encode())
+        return
+
+    def message(self, channel, text):
+        self.connection.send(
+            ('PRIVMSG %s :%s%s' % (channel, text, os.linesep)).encode()
+        )
+        return
+
+    def pong(self, line):
+        self.connection.send(
+            ('PONG %s %s' % (line.split()[1], os.linesep)).encode()
+        )
+        return
 
 
 class Message(object):

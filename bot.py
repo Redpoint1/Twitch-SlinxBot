@@ -1,76 +1,62 @@
 import os
-import socket
 import requests
+import multiprocessing
 
-from bot_irc import Message
+from bot_irc import Message, IRC
 
 
 class BaseBot(object):
 
     def __init__(self):
-        self.host = None
-        self.port = None
-        self.channels = []
-        self.irc = None
+        self.irc = IRC()
 
-        self.nickname = None
-        self.password = None
+    @property
+    def host(self):
+        return self.irc.host
+
+    @property
+    def port(self):
+        return self.irc.port
+
+    @property
+    def username(self):
+        return self.irc.username
+
+    @property
+    def password(self):
+        return self.irc.password
+
+    @property
+    def channel(self):
+        return self.irc.channel
 
     def connect(self, host, port):
-        self.host = host
-        self.port = port
-
-        self.irc = socket.socket()
-        self.irc.connect((host, port))
+        self.irc.connect(host, port)
         return
 
-    def login(self, nickname, password):
-        self.nickname = nickname
-        self.password = password
-
-        self.irc.send(('PASS %s %s' % (password, os.linesep)).encode())
-        print('PASS %s' % password)
-        self.irc.send(('NICK %s %s' % (nickname, os.linesep)).encode())
-        print('NICK %s' % nickname)
-        self.irc.send(('USER %s %s' % (nickname, os.linesep)).encode())
-        print('USER %s' % nickname)
+    def login(self, username, password):
+        self.irc.login(username, password)
         return
 
     def allow_meta_data(self):
-        self.irc.send(
-            'CAP REQ :twitch.tv/membership\r\n'.encode()
-        )
-        self.irc.send(
-            'CAP REQ :twitch.tv/tags\r\n'.encode()
-        )
+        self.irc.allow_meta_data()
+        return
 
     def channel_join(self, channel):
-        self.channels.append(channel)
-
-        self.irc.send(('JOIN %s %s' % (channel, os.linesep)).encode())
-        print('JOIN %s' % channel)
+        self.irc.channel_join(channel)
         return
 
     def channel_leave(self, channel):
-        self.channels.remove(channel)
-
-        self.irc.send(('PART %s %s' % (channel, os.linesep)).encode())
-        print('PART %s' % channel)
+        self.irc.channel_leave(channel)
         return
 
     def message(self, channel, text):
-        self.irc.send(
-            ('PRIVMSG %s :%s%s' % (channel, text, os.linesep)).encode()
-        )
-        print('PRIVMSG %s :%s' % (channel, text))
+        self.irc.message(channel, text)
         return
 
     def pong(self, line):
-        self.irc.send(('PONG %s %s' % (line.split()[1], os.linesep)).encode())
+        self.irc.pong(line)
         return
-
-    def who_am_i(self):
-        return self.nickname
 
     def is_mod(self, channel):
         url = 'https://tmi.twitch.tv/group/user/%s/chatters' % channel
@@ -78,7 +64,7 @@ class BaseBot(object):
         moderators = response['chatters']['moderators']
 
         for moderator in moderators:
-            if moderator == self.nickname:
+            if moderator == self.username:
                 return True
         return False
 
@@ -96,7 +82,7 @@ class BaseBot(object):
     def run(self):
         readbuffer = ''
         while True:
-            readbuffer = readbuffer + self.irc.recv(1024).decode()
+            readbuffer = readbuffer + self.irc.connection.recv(1024).decode()
             temp = readbuffer.split(os.linesep)
             readbuffer = temp.pop()
 
@@ -110,30 +96,47 @@ class BaseBot(object):
                     self.dispatch(line)
 
 
-class Bot(BaseBot):
+class SlaveBot(BaseBot):
+
+    def __init__(self):
+        print("I was enslaved. %s" % multiprocessing.current_process().name)
+        super(SlaveBot, self).__init__()
+
+    def command_leave(self):
+        pass
+
+
+class MasterBot(SlaveBot):
+
+    def __init__(self):
+        self.slaves = []
+        super(SlaveBot, self).__init__()
+
+    def enslave(self, host, port, nick, password, channel):
+        bot = SlaveBot()
+        bot.connect(host, port)
+        bot.login(nick, password)
+        bot.allow_meta_data()
+        bot.channel_join(channel)
+        bot.run()
 
     def command_join(self, command):
-        if command.channel != ('#'+self.nickname):
-            self.message(
-                command.channel,
-                'This command is available only on #%s channel' % self.nickname
-            )
+        if command.channel != ('#'+self.username):
             return
 
         users_channel = '#%s' % command.user
-        if users_channel in self.channels:
+        if users_channel in self.channel:
+            # process list name aka channel name check
             self.message(
                 command.channel,
                 'Bot is already on %s' % users_channel
             )
             return
 
-        self.channel_join(users_channel)
-        if self.is_mod(command.user):
-            self.message(users_channel, 'Hi im a bot, please enjoy me. !help')
-        else:
-            self.message(
-                users_channel,
-                '@%s, probably i dont have a mod perms here!' % command.user
-            )
+        slave = multiprocessing.Process(
+            target=self.enslave,
+            args=(self.host, self.port, self.username, self.password,
+                  users_channel))
+        self.slaves.append(slave)
+        slave.start()
         return

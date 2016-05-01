@@ -2,7 +2,7 @@ import os
 import sys
 import subprocess
 
-from bot import Bot
+from bot import MasterBot
 
 NICK = 'XX'
 CHANNEL = 'XX'
@@ -25,12 +25,12 @@ def main():
                      stderr=subprocess.DEVNULL,
                      shell=True)
 
-    bot = Bot()
+    bot = MasterBot()
     bot.connect(HOST, PORT)
     bot.login(NICK, PASS)
     bot.allow_meta_data()
     bot.channel_join(CHANNEL)
-    bot.message(CHANNEL, 'Im again available. Use me!')
+    bot.message(CHANNEL, 'My Lord, im available!')
     bot.run()
 
 if __name__ == '__main__':

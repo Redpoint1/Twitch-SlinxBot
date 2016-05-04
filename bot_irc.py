@@ -91,7 +91,7 @@ class Message(object):
         if self._is_command(message):
             command = message.lstrip('!').strip()
             return command.split()
-        return None
+        return None, []
 
     @property
     def is_command(self):
@@ -104,5 +104,18 @@ class Message(object):
 
 
 class Mode(object):
-    pass
 
+    def __init__(self, line):
+        self.channel, self._mode, self.user = self.parse_mode(line)
+
+    def parse_mode(self, line):
+        if 'MODE' in line:
+            regex = re.search(r'(#\w+) ([+-]{1})o (\w+)', line, re.DOTALL)
+            return regex.groups(None)
+        return None, None, None
+
+    @property
+    def is_mod(self):
+        if self._mode == '+':
+            return True
+        return False

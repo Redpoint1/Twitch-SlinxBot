@@ -2,13 +2,14 @@ import os
 import requests
 import multiprocessing
 
-from bot_irc import Message, IRC
+from bot_irc import Message, Mode, IRC
 
 
 class BaseBot(object):
 
     def __init__(self):
         self.irc = IRC()
+        self.is_mod = False
 
     @property
     def host(self):
@@ -58,21 +59,18 @@ class BaseBot(object):
         self.irc.pong(line)
         return
 
-    def is_mod(self, channel):
-        url = 'https://tmi.twitch.tv/group/user/%s/chatters' % channel
-        response = requests.get(url).json()
-        moderators = response['chatters']['moderators']
-
-        for moderator in moderators:
-            if moderator == self.username:
-                return True
-        return False
-
     def dispatch(self, line):
         if 'PRIVMSG' in line:
             message = Message(line)
             if message.is_command:
                 self.run_command(message)
+        if 'MODE' in line:
+            operator = Mode(line)
+            if operator.channel == self.channel:
+                if operator.user == self.username:
+                    self.is_mod = operator.is_mod
+                return
+            print('Unexpected channel')
 
     def run_command(self, command):
         command_func = getattr(self, 'command_%s' % command.command, None)
@@ -99,7 +97,7 @@ class BaseBot(object):
 class SlaveBot(BaseBot):
 
     def __init__(self):
-        print("I was enslaved. %s" % multiprocessing.current_process().name)
+        print("%s: I was enslaved." % multiprocessing.current_process().name)
         super(SlaveBot, self).__init__()
 
     def command_leave(self):

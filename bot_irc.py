@@ -82,7 +82,7 @@ class Message(object):
             meta_infos = dict()
             for meta in metas:
                 key, value = meta.split('=')
-                meta_infos[key.replace('-', '_')] = value.strip or None
+                meta_infos[key.replace('-', '_')] = value.strip() or None
 
             return meta_infos
         return None
@@ -92,6 +92,10 @@ class Message(object):
             command = message.lstrip('!').strip()
             return command.split()
         return None, []
+
+    @property
+    def is_from_mod(self):
+        return self.meta.get('mod') == '1'
 
     @property
     def is_command(self):

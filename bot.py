@@ -1,5 +1,5 @@
 import os
-import requests
+import sys
 import multiprocessing
 
 from bot_irc import Message, Mode, IRC
@@ -100,8 +100,12 @@ class SlaveBot(BaseBot):
         print("%s: I was enslaved." % multiprocessing.current_process().name)
         super(SlaveBot, self).__init__()
 
-    def command_leave(self):
-        pass
+    def command_leave(self, command):
+        if command.channel == ('#' + self.username):
+            return
+
+        if command.is_from_mod:
+            sys.exit(-1)
 
 
 class MasterBot(SlaveBot):

@@ -1,8 +1,24 @@
 import os
 import sys
+import configparser
 import multiprocessing
 
 from bot_irc import Message, Mode, IRC
+
+
+class Config(configparser.ConfigParser):
+
+    def __init__(self):
+
+        bot_default = {
+            'host': 'irc.chat.twitch.tv',
+            'port': '6667',
+            'limit_as_user': '20',
+            'limit_as_mod': '100',
+            'timeout_per_user': '30'
+        }
+
+        super(Config, self).__init__(bot_default)
 
 
 class BaseBot(object):
@@ -10,6 +26,12 @@ class BaseBot(object):
     def __init__(self):
         self.irc = IRC()
         self.is_mod = False
+        self.config = Config()
+        config_path = os.path.join(os.curdir, 'twitch.cfg')
+        if os.path.exists(config_path):
+            self.config.read(config_path)
+        else:
+            raise configparser.ParsingError('Unable to find config file')
 
     @property
     def host(self):

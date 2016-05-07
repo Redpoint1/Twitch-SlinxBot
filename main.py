@@ -4,12 +4,6 @@ import subprocess
 
 from bot import MasterBot
 
-NICK = 'XX'
-CHANNEL = 'XX'
-PASS = 'XX'
-HOST = 'irc.chat.twitch.tv'
-PORT = 6667
-
 
 def main():
     subprocess.Popen(['celery', '-A', 'twitch', 'worker'],
@@ -26,11 +20,18 @@ def main():
                      shell=True)
 
     bot = MasterBot()
-    bot.connect(HOST, PORT)
-    bot.login(NICK, PASS)
+
+    host = bot.config.get('twitch', 'host')
+    port = bot.config.getint('twitch', 'port')
+    nick = bot.config.get('twitch', 'account')
+    password = bot.config.get('twitch', 'password')
+    channel = bot.config.get('twitch', 'channel')
+
+    bot.connect(host, port)
+    bot.login(nick, password)
     bot.allow_meta_data()
-    bot.channel_join(CHANNEL)
-    bot.message(CHANNEL, 'My Lord, im available!')
+    bot.channel_join(channel)
+    bot.message(channel, 'My Lord, im available!')
     bot.run()
 
 if __name__ == '__main__':

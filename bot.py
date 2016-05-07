@@ -69,12 +69,12 @@ class BaseBot(object):
         self.irc.channel_join(channel)
         return
 
-    def channel_leave(self, channel):
-        self.irc.channel_leave(channel)
+    def channel_leave(self):
+        self.irc.channel_leave()
         return
 
-    def message(self, channel, text):
-        self.irc.message(channel, text)
+    def message(self, text):
+        self.irc.message(text)
         return
 
     def pong(self, line):
@@ -145,17 +145,18 @@ class MasterBot(SlaveBot):
         bot.run()
 
     def command_join(self, command):
-        if command.channel != ('#'+self.username):
+        users_channel = command.user
+
+        if users_channel == self.channel:
+            self.message('Im already on this channel!')
             return
 
-        users_channel = '#%s' % command.user
-        if users_channel in self.channel:
-            # process list name aka channel name check
-            self.message(
-                command.channel,
-                'Bot is already on %s' % users_channel
-            )
-            return
+        # if users_channel != self.channel:
+        #     # TODO process list name aka channel name check
+        #     self.message(
+        #         'Bot is already on %s' % users_channel
+        #     )
+        #     return
 
         slave = multiprocessing.Process(
             target=self.enslave,

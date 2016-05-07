@@ -31,7 +31,7 @@ def main():
     bot.login(nick, password)
     bot.allow_meta_data()
     bot.channel_join(channel)
-    bot.message(channel, 'My Lord, im available!')
+    bot.message('My Lord, im available!')
     bot.run()
 
 if __name__ == '__main__':

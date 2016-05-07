@@ -10,7 +10,7 @@ class IRC(object):
         self.port = None
         self.username = None
         self.password = None
-        self.channel = None
+        self._channel = None
         self.connection = socket.socket()
 
     def connect(self, host, port):
@@ -38,20 +38,25 @@ class IRC(object):
         )
 
     def channel_join(self, channel):
-        self.channel = channel
+        if self._channel:
+            print("Bot is already connected to channel")
 
-        self.connection.send(('JOIN %s %s' % (channel, os.linesep)).encode())
+        self._channel = channel
+        self.connection.send(('JOIN %s %s' % (self.channel, os.linesep)).encode())
         return
 
-    def channel_leave(self, channel):
-        self.channel = None
-
-        self.connection.send(('PART %s %s' % (channel, os.linesep)).encode())
+    def channel_leave(self):
+        self.connection.send(('PART %s %s' % (self.channel, os.linesep)).encode())
+        self._channel = None
         return
 
-    def message(self, channel, text):
+    def message(self, text):
+        if not self._channel:
+            print("Bot is not connected to channel")
+            return
+
         self.connection.send(
-            ('PRIVMSG %s :%s%s' % (channel, text, os.linesep)).encode()
+            ('PRIVMSG %s :%s%s' % (self.channel, text, os.linesep)).encode()
         )
         return
 
@@ -61,10 +66,16 @@ class IRC(object):
         )
         return
 
+    @property
+    def channel(self):
+        if self._channel:
+            return '#%s' % self._channel
+        return self._channel
+
 
 class Message(object):
     def __init__(self, line):
-        self.user, self.channel, self.message = self.parse_info(line)
+        self.user, self._channel, self.message = self.parse_info(line)
         self.command, *self.args = self.parse_command(self.message)
         self.meta = self.parse_meta(line)
 
@@ -72,7 +83,7 @@ class Message(object):
         # :slinxsvk!slinxsvk@slinxsvk.tmi.twitch.tv PRIVMSG #slinxsvk :test
 
         if 'PRIVMSG' in line:
-            regex = re.search(r':([^!]+).+(#[^\s]+) :(.*)$', line, re.DOTALL)
+            regex = re.search(r':([^!]+).+#([^\s]+) :(.*)$', line, re.DOTALL)
             return regex.groups(None)
         return None, None, None
 
@@ -98,6 +109,12 @@ class Message(object):
         return self.meta.get('mod') == '1'
 
     @property
+    def channel(self):
+        if self._channel:
+            return '#%s' % self._channel
+        return self._channel
+
+    @property
     def is_command(self):
         return self._is_command(self.message)
 
@@ -110,11 +127,11 @@ class Message(object):
 class Mode(object):
 
     def __init__(self, line):
-        self.channel, self._mode, self.user = self.parse_mode(line)
+        self._channel, self._mode, self.user = self.parse_mode(line)
 
     def parse_mode(self, line):
         if 'MODE' in line:
-            regex = re.search(r'(#\w+) ([+-]{1})o (\w+)', line, re.DOTALL)
+            regex = re.search(r'#(\w+) ([+-]{1})o (\w+)', line, re.DOTALL)
             return regex.groups(None)
         return None, None, None
 
@@ -123,3 +140,9 @@ class Mode(object):
         if self._mode == '+':
             return True
         return False
+
+    @property
+    def channel(self):
+        if self._channel:
+            return '#%s' % self._channel
+        return self._channel

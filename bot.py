@@ -24,11 +24,12 @@ class Database(object):
             self.connect(channel)
 
     @classmethod
-    def init_db(cls, channel):
+    def init_db(cls, channel=None):
         if cls.engine:
             return cls.engine
 
         channel = channel or cls.channel
+        cls.channel = channel
 
         cls.engine = create_engine('sqlite:///channels/%s.sqlite' % channel)
         if not database_exists(cls.engine.url):
@@ -42,6 +43,7 @@ class Database(object):
             return cls.session
 
         channel = channel or cls.channel
+        cls.channel = channel
 
         cls.init_db(channel)
         session_func = sessionmaker(bind=cls.engine)

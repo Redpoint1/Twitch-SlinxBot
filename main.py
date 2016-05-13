@@ -6,6 +6,11 @@ from bot import MasterBot
 
 
 def main():
+    channel_dbs = os.path.join(os.path.curdir, 'channels')
+
+    if not os.path.exists(channel_dbs):
+        os.makedirs(channel_dbs)
+
     subprocess.Popen(['celery', '-A', 'twitch', 'worker'],
                      stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL,

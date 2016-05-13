@@ -3,7 +3,79 @@ import sys
 import configparser
 import multiprocessing
 
+from datetime import datetime
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy_utils import database_exists, create_database
+
+import models as db_models
+
 from bot_irc import Message, Mode, IRC
+
+
+class Database(object):
+    session = None
+    engine = None
+    channel = None
+
+    def __init__(self, channel=None):
+        if channel:
+            self.channel = channel
+            self.connect(channel)
+
+    @classmethod
+    def init_db(cls, channel):
+        if cls.engine:
+            return cls.engine
+
+        channel = channel or cls.channel
+
+        cls.engine = create_engine('sqlite:///channels/%s.sqlite' % channel)
+        if not database_exists(cls.engine.url):
+            create_database(cls.engine.url)
+            db_models.Base.metadata.create_all(cls.engine.connect())
+        return
+
+    @classmethod
+    def get_session(cls, channel=None):
+        if cls.session:
+            return cls.session
+
+        channel = channel or cls.channel
+
+        cls.init_db(channel)
+        session_func = sessionmaker(bind=cls.engine)
+        cls.session = session_func()
+        return cls.session
+
+    def connect(self, channel):
+        self.get_session(channel)
+        return
+
+    def close(self):
+        if self.session is not None:
+            self.session.close()
+
+    def get_or_create(self, model, **kwargs):
+        instance = self.session.query(model).filter_by(**kwargs).first()
+        if instance:
+            return instance
+        else:
+            instance = model(**kwargs)
+            self.session.add(instance)
+            self.session.commit()
+            return instance
+
+    def command_request_by(self, username):
+        user = self.get_or_create(db_models.User, username=username)
+        user.last_request = datetime.utcnow()
+        self.session.add(user)
+        self.session.commit()
+
+    def add_history(self, text):
+        history = db_models.History(text=text)
+        self.session.add(history)
+        self.session.commit()
 
 
 class Config(configparser.ConfigParser):
@@ -27,6 +99,7 @@ class BaseBot(object):
         self.irc = IRC()
         self.is_mod = False
         self.config = Config()
+        self.db = Database()
         config_path = os.path.join(os.curdir, 'twitch.cfg')
         if os.path.exists(config_path):
             self.config.read(config_path)
@@ -67,6 +140,7 @@ class BaseBot(object):
 
     def channel_join(self, channel):
         self.irc.channel_join(channel)
+        self.db.connect(channel)
         return
 
     def channel_leave(self):
@@ -75,6 +149,8 @@ class BaseBot(object):
 
     def message(self, text):
         self.irc.message(text)
+        if self.irc.channel is not None:
+            self.db.add_history(text)
         return
 
     def pong(self, line):
@@ -85,6 +161,7 @@ class BaseBot(object):
         if 'PRIVMSG' in line:
             message = Message(line)
             if message.is_command:
+                self.db.command_request_by(message.user)
                 self.run_command(message)
         if 'MODE' in line:
             operator = Mode(line)

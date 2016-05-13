@@ -230,12 +230,11 @@ class MasterBot(SlaveBot):
             self.message('Im already on this channel!')
             return
 
-        # if users_channel != self.channel:
-        #     # TODO process list name aka channel name check
-        #     self.message(
-        #         'Bot is already on %s' % users_channel
-        #     )
-        #     return
+        if any([slave._args[-1] == users_channel for slave in self.slaves]):
+            self.message(
+                'Bot is already on %s' % users_channel
+            )
+            return
 
         slave = multiprocessing.Process(
             target=self.enslave,

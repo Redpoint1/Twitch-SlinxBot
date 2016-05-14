@@ -1,6 +1,6 @@
 import os
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -10,7 +10,7 @@ from twitch import app as queue
 
 
 def clear_history(database_file):
-    now = datetime.utcnow()
+    now = datetime.utcnow() - timedelta(seconds=30)
 
     engine = create_engine('sqlite:///%s' % database_file)
     session = sessionmaker(bind=engine)()

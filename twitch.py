@@ -8,7 +8,7 @@ app = Celery('twitch',
 
 app.conf.CELERYBEAT_SCHEDULE = {
     'clear-db': {
-        'task': 'twitch.clear_dbs',
+        'task': 'tasks.clear_dbs',
         'schedule': timedelta(minutes=15)
     },
 }

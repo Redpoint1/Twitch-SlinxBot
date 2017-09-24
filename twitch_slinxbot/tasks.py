@@ -5,8 +5,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from models import History
-from twitch import app as queue
+from .models import History
 
 
 def clear_history(database_file):
@@ -20,7 +19,6 @@ def clear_history(database_file):
     return
 
 
-@queue.task()
 def clear_dbs():
     databases_path = os.path.join(os.curdir + os.path.sep + 'channels')
     if os.path.exists(databases_path):

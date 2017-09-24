@@ -1,8 +1,7 @@
 import os
 import sys
-import subprocess
 
-from bot import MasterBot
+from .bot import MasterBot
 
 
 def main():
@@ -10,19 +9,6 @@ def main():
 
     if not os.path.exists(channel_dbs):
         os.makedirs(channel_dbs)
-
-    subprocess.Popen(['celery', '-A', 'twitch', 'worker'],
-                     stdout=subprocess.DEVNULL,
-                     stderr=subprocess.DEVNULL,
-                     shell=True)
-
-    pid_file = os.path.join(os.path.curdir, 'celerybeat.pid')
-    if os.path.exists(pid_file):
-        os.remove(pid_file)
-    subprocess.Popen(['celery', '-A', 'twitch', 'beat', '-l', 'info'],
-                     stdout=subprocess.DEVNULL,
-                     stderr=subprocess.DEVNULL,
-                     shell=True)
 
     bot = MasterBot()
 

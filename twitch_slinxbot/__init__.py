@@ -1,4 +1,4 @@
-__title__ = 'Twitcher'
+__title__ = 'Twitch-SlinxBot'
 __version__ = '0.1.0'
 __author__ = 'Richard Rozar'
 __license__ = 'MIT'

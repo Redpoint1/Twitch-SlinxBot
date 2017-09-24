@@ -8,7 +8,7 @@ matrix:
   include:
     - python: "3.5"
       install: pip install flake8
-      script: flake8 src
+      script: flake8 twitch_slinxbot
 
 install:
   - pip install -r requirements.txt
